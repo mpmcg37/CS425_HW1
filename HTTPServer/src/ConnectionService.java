@@ -11,6 +11,11 @@ public class ConnectionService implements Runnable {
 	private Scanner in;
 	private PrintStream out;
 
+	/**
+	 * Create a Connection using an existing socket.
+	 * Increment the number of connections
+	 * @param connection - Socket created by server creating this connection service object.
+	 */
 	public ConnectionService(Socket connection) {
 		this.connection = connection;
 		incr();
@@ -24,8 +29,20 @@ public class ConnectionService implements Runnable {
 		}
 	}
 	
+	/**
+	 * Increment the number of connections
+	 */
 	public static synchronized void incr(){ numConnections++;}
+	
+	/**
+	 * Decrement the number of connections
+	 */
 	public static synchronized void decr(){ numConnections--;}
+	
+	/**
+	 * Get the number of open connections
+	 * @return numConnections
+	 */
 	public static synchronized int getNumConnections(){ return numConnections;}
 
 	private void debugConnectionInfo() {
