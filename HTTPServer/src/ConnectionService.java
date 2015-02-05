@@ -52,14 +52,24 @@ public class ConnectionService implements Runnable {
 		System.out.println("Remote Port "+connection.getPort());
 		
 	}
+	
+	/**
+	 * Implementation of http's GET
+	 * @param string 
+	 */
+	public String httpGET(String URI){
+		return null;
+		
+	}
 
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
 		while(in.hasNext()){
-			String s = in.nextLine();
+			String s = in.nextLine().trim();
 			System.out.println("Recieved string is: "+s);
-			out.println(s);
+			if(s.startsWith("GET"))
+				out.print(httpGET(s.split(" ")[0]));
 		}
 		
 		try {

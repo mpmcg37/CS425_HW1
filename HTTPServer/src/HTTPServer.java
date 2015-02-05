@@ -6,6 +6,7 @@ import java.net.Socket;
 public class HTTPServer {
 	
 	private static final int MAX_CONNECTIONS = 10;
+	private static int port = 8080;
 	private ServerSocket ss;
 	
 	public HTTPServer(int port) {
@@ -17,17 +18,19 @@ public class HTTPServer {
 	}
 
 	public static void main(String[] args) {
-		HTTPServer myhttp = new HTTPServer(8080);
+		if(args.length>0)
+			port  = Integer.parseInt(args[0]);
+		HTTPServer myhttp = new HTTPServer(port);
 		myhttp.start();
 	}
 
 	public void start() {
 		try{
 			while(true){
-				//System.out.println("Listening");
+				//"Listening";
 				if(ConnectionService.getNumConnections()<MAX_CONNECTIONS){
 					Socket connection = ss.accept();
-					//System.out.println("Serving");
+					//"Serving";
 					(new Thread(new ConnectionService(connection))).start();
 				}
 				else
