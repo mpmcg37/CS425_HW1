@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -11,7 +12,8 @@ import java.util.TimeZone;
 
 public class ConnectionService implements Runnable {
 	
-	private final String CRLF = "\r\n", SP = " ";
+	private final String CRLF = "\r\n", SP = " ", CONTENT_LANGUAGE = "Content-language: en"+CRLF;
+	private String Server = "Server: ";
 	private static int numConnections;
 	private Socket connection;
 	private Scanner in;
@@ -25,7 +27,8 @@ public class ConnectionService implements Runnable {
 	public ConnectionService(Socket connection) {
 		this.connection = connection;
 		incr();
-		debugConnectionInfo();
+		Server+=connection.getInetAddress().toString()+CRLF;
+		//debugConnectionInfo();
 		try {
 			in = new Scanner(connection.getInputStream());
 			out = new PrintStream(connection.getOutputStream());
@@ -75,25 +78,37 @@ public class ConnectionService implements Runnable {
 		//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 		String statusLine = "HTTP/1.1"+SP;
 		String date = "Date: "+getServerTime()+CRLF;
-		String messageBody = "[";
+		File index = null;
+		String messageData = null;
+		
 		URI = trimURI(URI);
 		if(f.isDirectory()){
 			//return index.html
-			if(URI.equals("/")){
-				File index = new File("index.html");
-				//error checking for index.html, does it exist? does it have read permission
-				if(!index.exists()|| !index.canRead())
-					statusLine += indexError();
-				
-			}
+			if(URI.equals("/"))
+				index = new File(f.getPath()+URI+"index.html");
+			else
+				index = new File(URI);
+			//error checking for index, does it exist? does it have read permission?
+			if(!index.exists()|| !index.canRead())
+				statusLine += indexError();
 				
 		}else
 			//directory www does not exist return an error
 			statusLine += dirError();
-		return statusLine+date+messageBody+"]";
+		//if index == null then an error has occurred
+		if(index != null)
+			try {
+			byte[] tmp = Files.readAllBytes(index.toPath());
+			for(int i = 0; i<tmp.length; i++)
+				messageData+=tmp[i];
+			
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		return statusLine+Server+CONTENT_LANGUAGE+date+"["+messageData+"]";
 		
 	}
-	
+
 	private String getServerTime() {
 		    Calendar calendar = Calendar.getInstance();
 		    SimpleDateFormat dateFormat = new SimpleDateFormat(
@@ -121,15 +136,20 @@ public class ConnectionService implements Runnable {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		while(in.hasNext()){
+		// Read the first line for HTTP request
 			String s = in.nextLine();
-			System.out.println("Recieved string is: "+s);
-			if(s.startsWith("GET"))
+			if(s.startsWith("GET")){
+				System.out.println(httpGET(s));
 				out.print(httpGET(s));
+				}
 			else
 				//Unsupported HTTP 1.1 request
 				out.print(unimplementedHTTP());
+			
+		//Read the rest of the request, maybe important later on
+		while(in.hasNext()){
+			s += in.nextLine();
+			//System.out.println(s);
 		}
 		
 		try {
@@ -142,7 +162,7 @@ public class ConnectionService implements Runnable {
 	}
 	
 	//Return value for unsupported HTTP methods
-		private String serverIssueHTTP() {
+	private String serverIssueHTTP() {
 			// TODO Auto-generated method stub
 			return "500"+SP+"Internal Server Error"+CRLF;
 		}
