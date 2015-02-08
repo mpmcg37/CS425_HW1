@@ -97,7 +97,7 @@ public class ConnectionService implements Runnable {
 					e.printStackTrace();
 				}
 			//error checking for index, does it exist? does it have read permission?
-			if(!index.exists()|| !index.canRead()){
+			if(index==null||!index.exists()|| !index.canRead()){
 				statusLine += indexError();
 				index = null;
 			}
@@ -179,7 +179,7 @@ public class ConnectionService implements Runnable {
 	@Override
 	public void run() {
 		// Read the first line for HTTP request
-		if(in.hasNext()){
+		while(in.hasNext()){
 			String s = in.nextLine();
 			if(s.startsWith("GET")){
 				System.out.println(httpGET(s));
@@ -188,12 +188,6 @@ public class ConnectionService implements Runnable {
 			else
 				//Unsupported HTTP 1.1 request
 				out.print(unimplementedHTTP());
-			
-		//Read the rest of the request, maybe important later on
-		while(in.hasNext()){
-			s += in.nextLine();
-			//System.out.println(s);
-		}
 		}
 		try {
 			decr();
