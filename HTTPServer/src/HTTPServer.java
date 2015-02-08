@@ -9,6 +9,10 @@ public class HTTPServer {
 	private static int port = 8080;
 	private ServerSocket ss;
 	
+	/**
+	 * Create an HTTPServer object on the specified port
+	 * @param port - the desired port for this server
+	 */
 	public HTTPServer(int port) {
 		try{
 			ss = new ServerSocket(port);
@@ -17,6 +21,11 @@ public class HTTPServer {
 		}
 	}
 
+	/**
+	 * Reads from the user for the specified port or sets it to 8080 as specified above.
+	 * Calls the start method to listen for connections.
+	 * @param args - CMD line arguments from user
+	 */
 	public static void main(String[] args) {
 		if(args.length>0)
 			port  = Integer.parseInt(args[0]);
@@ -24,7 +33,11 @@ public class HTTPServer {
 		myhttp.start();
 	}
 
-	public void start() {
+	/*
+	 *Listens for connections with the limit set by MAX_CONNECTIONS
+	 *Creates a new ConnectionService thread and starts it to handle serving the client.
+	 */
+	private void start() {
 		try{
 			while(true){
 				//"Listening";
