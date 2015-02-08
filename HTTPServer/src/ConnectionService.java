@@ -12,9 +12,16 @@ import java.util.TimeZone;
 
 public class ConnectionService implements Runnable {
 	
+	//Constants used in HTML Spec CRLF:Carriage Return Line Feed and SP: Space, ContentLanguage is just to simplify returns later
 	private final String CRLF = "\r\n", SP = " ", CONTENT_LANGUAGE = "Content-language: en"+CRLF;
+	//The Start of the server ID, added onto by the constructor
 	private String Server = "Server: ";
+	//Number of connections, held static over all connectionservice objects, used by HTTP Server
 	private static int numConnections;
+
+	/*
+	 * Connection Socket, input stream, output stream
+	 */
 	private Socket connection;
 	private Scanner in;
 	private PrintStream out;  
@@ -26,10 +33,13 @@ public class ConnectionService implements Runnable {
 	 */
 	public ConnectionService(Socket connection) {
 		this.connection = connection;
+		//increment the number of connections
 		incr();
+		//Format for ServerID //XXX.XXX.X.X \n
 		Server+=connection.getInetAddress().toString()+CRLF;
 		//debugConnectionInfo();
 		try {
+			//set the input and output streams for the socket
 			in = new Scanner(connection.getInputStream());
 			out = new PrintStream(connection.getOutputStream());
 		} catch (IOException e) {
@@ -54,12 +64,13 @@ public class ConnectionService implements Runnable {
 	 */
 	public static synchronized int getNumConnections(){ return numConnections;}
 
+	//Debugging method to print my IP, my Port, Server IP, Server Port
+	@SuppressWarnings("unused")
 	private void debugConnectionInfo() {
 		System.out.println("Local IP "+connection.getLocalAddress());
 		System.out.println("Local Port "+connection.getLocalPort());
 		System.out.println("Remote IP "+connection.getInetAddress());
 		System.out.println("Remote Port "+connection.getPort());
-		
 	}
 	
 	/**
@@ -70,33 +81,38 @@ public class ConnectionService implements Runnable {
                         | entity-header ) CRLF)  ; Section 7.1
                        CRLF
                        [ message-body ]          ; Section 7.2
-	 * @param string 
-	 * @return retval
+	 * @param URI - The path to the desired file
+	 * @return retval - the string to be returned in the response
 	 */
 	public String httpGET(String URI){
+		//create a handle to the www directory
 		File f = new File("www");
 		//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 		String statusLine = "HTTP/1.1"+SP;
+		//Set the date
 		String date = "Date: "+getServerTime()+CRLF;
+		//The file to read and return
 		File index = null;
+		//the contents of the read file
 		String messageData = null;
-		
+		//Remove the GET and HTTP from the URI
 		URI = trimURI(URI);
+		//ensure that the www directory exists
 		if(f.isDirectory()){
 			//return index.html
 			if(URI.equals("/"))
 				index = new File(f.getPath()+URI+"index.html");
 			else
 				try {
+					//is this a valid file request
 					if(isSubDirectory(f, new File(f.getPath()+URI)))
 						index = new File(URI);
 					else //invalid file request
 						statusLine += invalidFile();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			//error checking for index, does it exist? does it have read permission?
+			//error checking for index, does it exist? does it have read permission? Set index to null to indicate error occurred
 			if(index==null||!index.exists()|| !index.canRead()){
 				statusLine += indexError();
 				index = null;
@@ -108,11 +124,14 @@ public class ConnectionService implements Runnable {
 		//if index == null then an error has occurred
 		if(index != null)
 			try {
-			byte[] tmp = Files.readAllBytes(index.toPath());
-			for(int i = 0; i<tmp.length; i++)
-				if(tmp[i]!=0)
-				messageData+=(char)tmp[i];
-			statusLine += "200"+SP+"OK"+CRLF;
+				//read the contents of the file in byte form
+				byte[] tmp = Files.readAllBytes(index.toPath());
+				//convert from bytes to string
+				for(int i = 0; i<tmp.length; i++)
+					if(tmp[i]!=0)
+						messageData+=(char)tmp[i];
+				//indicate successful file read
+				statusLine += OKHTTP();
 			
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -121,9 +140,14 @@ public class ConnectionService implements Runnable {
 		
 	}
 
+	//return for the OK status response
+	private String OKHTTP() {
+		return "200"+SP+"OK"+CRLF;
+	}
+
+	//Return value for an invalid file request, maybe just close the connection??
 	private String invalidFile() {
-		// TODO Auto-generated method stub
-		System.out.println("Stopped a potential invalid file breach");
+		//System.out.println("Stopped a potential invalid file breach");
 		return null;
 	}
 
@@ -151,6 +175,7 @@ public class ConnectionService implements Runnable {
 	      return false;
 	  }
 
+	//Get the server time in the format Date: Tue, 15 Nov 1994 08:12:31 GMT
 	private String getServerTime() {
 		    Calendar calendar = Calendar.getInstance();
 		    SimpleDateFormat dateFormat = new SimpleDateFormat(
@@ -177,19 +202,30 @@ public class ConnectionService implements Runnable {
 	}
 
 	@Override
+	/**
+	 * Run method called by Server, responds to the client
+	 */
 	public void run() {
-		// Read the first line for HTTP request
+		// Read the input until the connection closes or there is no more input
 		while(in.hasNext()){
 			String s = in.nextLine();
 			if(s.startsWith("GET")){
-				System.out.println(httpGET(s));
+				//System.out.println(httpGET(s));
+				//return the GET response
 				out.print(httpGET(s));
 				}
 			else
 				//Unsupported HTTP 1.1 request
 				out.print(unimplementedHTTP());
 		}
+		
+		closeConnection();
+	}
+	
+	//Close the connection
+	private void closeConnection() {
 		try {
+			//decrement the number of server connections
 			decr();
 			connection.close();
 		} catch (IOException e) {
@@ -197,7 +233,7 @@ public class ConnectionService implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	//Return value for unsupported HTTP methods
 	private String serverIssueHTTP() {
 			// TODO Auto-generated method stub
