@@ -87,10 +87,20 @@ public class ConnectionService implements Runnable {
 			if(URI.equals("/"))
 				index = new File(f.getPath()+URI+"index.html");
 			else
-				index = new File(URI);
+				try {
+					if(isSubDirectory(f, new File(f.getPath()+URI)))
+						index = new File(URI);
+					else //invalid file request
+						statusLine += invalidFile();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			//error checking for index, does it exist? does it have read permission?
-			if(!index.exists()|| !index.canRead())
+			if(!index.exists()|| !index.canRead()){
 				statusLine += indexError();
+				index = null;
+			}
 				
 		}else
 			//directory www does not exist return an error
@@ -100,7 +110,9 @@ public class ConnectionService implements Runnable {
 			try {
 			byte[] tmp = Files.readAllBytes(index.toPath());
 			for(int i = 0; i<tmp.length; i++)
-				messageData+=tmp[i];
+				if(tmp[i]!=0)
+				messageData+=(char)tmp[i];
+			statusLine += "200"+SP+"OK"+CRLF;
 			
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -108,6 +120,36 @@ public class ConnectionService implements Runnable {
 		return statusLine+Server+CONTENT_LANGUAGE+date+"["+messageData+"]";
 		
 	}
+
+	private String invalidFile() {
+		// TODO Auto-generated method stub
+		System.out.println("Stopped a potential invalid file breach");
+		return null;
+	}
+
+	/**
+	   * Checks, whether the child directory is a subdirectory of the base 
+	   * directory.
+	   *
+	   * @param base the base directory.
+	   * @param child the suspected child directory.
+	   * @return true, if the child is a subdirectory of the base directory.
+	   * @throws IOException if an IOError occured during the test.
+	   */
+	  public boolean isSubDirectory(File base, File child)
+	      throws IOException {
+	      base = base.getCanonicalFile();
+	      child = child.getCanonicalFile();
+
+	      File parentFile = child;
+	      while (parentFile != null) {
+	          if (base.equals(parentFile)) {
+	              return true;
+	          }
+	          parentFile = parentFile.getParentFile();
+	      }
+	      return false;
+	  }
 
 	private String getServerTime() {
 		    Calendar calendar = Calendar.getInstance();
@@ -137,6 +179,7 @@ public class ConnectionService implements Runnable {
 	@Override
 	public void run() {
 		// Read the first line for HTTP request
+		if(in.hasNext()){
 			String s = in.nextLine();
 			if(s.startsWith("GET")){
 				System.out.println(httpGET(s));
@@ -151,7 +194,7 @@ public class ConnectionService implements Runnable {
 			s += in.nextLine();
 			//System.out.println(s);
 		}
-		
+		}
 		try {
 			decr();
 			connection.close();
