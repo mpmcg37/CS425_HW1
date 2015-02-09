@@ -98,9 +98,6 @@ public class ConnectionService implements Runnable {
 		//Remove the GET and HTTP from the URI
 		URI = trimURI(URI);
 		
-		System.out.println("The trimmed URI:");
-		System.out.println(URI);
-		
 		//reject request to get documents outside of www folder
 		if(URI.contains("..")){
 			
@@ -108,25 +105,23 @@ public class ConnectionService implements Runnable {
 			
 		}
 		else{
-			System.out.println("Before checking that f is a directory");
 			//ensure that the www directory exists
 			if(f.isDirectory()){
 				//return index.html
-				System.out.println("f is a directory");
 				if(URI.equals("/")){
-					System.out.println("Checked that the URI equals / ");
 					index = new File(f.getPath()+URI+"index.html");
 				}
-				else
-					try {
-						//is this a valid file request
-						if(isSubDirectory(f, new File(f.getPath()+URI)))
-							index = new File(URI);
-						else //invalid file request
-							statusLine += invalidFile();
-					} catch (IOException e) {
-						e.printStackTrace();
+				else{
+					File checkFile = new File(f.getPath()+URI);
+					
+					if(checkFile.exists()){
+						index = checkFile;
 					}
+					else{
+						index = null;
+					}
+				}
+					
 				//error checking for index, does it exist? does it have read permission? Set index to null to indicate error occurred
 				if(index==null||!index.exists()|| !index.canRead()){
 					statusLine += indexError();
@@ -137,10 +132,10 @@ public class ConnectionService implements Runnable {
 				//directory www does not exist return an error
 				statusLine += dirError();
 			//if index == null then an error has occurred
-			if(index != null)
+			if(index != null){
+				
 				try {
 					//read the contents of the file in byte form
-					System.out.println("Reading the contents of the file in byte form");
 					byte[] tmp = Files.readAllBytes(index.toPath());
 					//convert from bytes to string
 					for(int i = 0; i<tmp.length; i++)
@@ -148,28 +143,28 @@ public class ConnectionService implements Runnable {
 							messageData+=(char)tmp[i];
 					//indicate successful file read
 					statusLine += OKHTTP();
-					System.out.println("Status should be successful");
 				
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+				
+				//display file contents
+				return statusLine+Server+CONTENT_LANGUAGE+date+messageData;
+			}
+				
+			
+			
 			
 		}
 		
-		
-		return statusLine+Server+CONTENT_TYPE+CONTENT_LANGUAGE+date+messageData;
+		//display error message
+		return statusLine+Server+CONTENT_TYPE+CONTENT_LANGUAGE+date+statusLine+CRLF;
 		
 	}
 
 	//return for the OK status response
 	private String OKHTTP() {
 		return "200"+SP+"OK"+CRLF;
-	}
-
-	//Return value for an invalid file request, maybe just close the connection??
-	private String invalidFile() {
-		//System.out.println("Stopped a potential invalid file breach");
-		return null;
 	}
 
 	/**
@@ -216,6 +211,11 @@ public class ConnectionService implements Runnable {
 		// TODO Auto-generated method stub
 		return serverIssueHTTP();
 	}
+	
+	//File does not exist, Server error
+	private String invalidFile() {
+		return serverIssueHTTP();
+	}
 
 	//Removes the GET and HTTP/1.1 from a URI
 	private String trimURI(String URI) {
@@ -230,17 +230,17 @@ public class ConnectionService implements Runnable {
 		// Read the input until the connection closes or there is no more input
 		while(in.hasNext()){
 			String s = in.nextLine();
-			System.out.println();
-			System.out.println(s);
-			System.out.println();
+
 			if(s.startsWith("GET")){
 				//System.out.println(httpGET(s));
 				//return the GET response
 				out.print(httpGET(s));
 				}
-			else
+			else if(s.startsWith("OPTIONS") || s.startsWith("HEAD") || s.startsWith("POST") || s.startsWith("PUT") || s.startsWith("DELETE") || s.startsWith("TRACE") || s.startsWith("CONNECT")){
 				//Unsupported HTTP 1.1 request
 				out.print(unimplementedHTTP());
+			}
+				
 		}
 		
 		closeConnection();
@@ -261,7 +261,7 @@ public class ConnectionService implements Runnable {
 	//Return value for unsupported HTTP methods
 	private String serverIssueHTTP() {
 			// TODO Auto-generated method stub
-			return "500"+SP+"Internal Server Error"+CRLF;
+		return "500"+SP+"Internal Server Error"+CRLF;
 		}
 
 	//Return value for unsupported HTTP methods
