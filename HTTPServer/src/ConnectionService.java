@@ -97,45 +97,58 @@ public class ConnectionService implements Runnable {
 		String messageData = null;
 		//Remove the GET and HTTP from the URI
 		URI = trimURI(URI);
-		//ensure that the www directory exists
-		if(f.isDirectory()){
-			//return index.html
-			if(URI.equals("/"))
-				index = new File(f.getPath()+URI+"index.html");
-			else
+		
+		//reject request to get documents outside of www folder
+		if(URI.contains("..")){
+			
+			statusLine += invalidFile();
+			
+		}
+		else{
+			
+			//ensure that the www directory exists
+			if(f.isDirectory()){
+				//return index.html
+				if(URI.equals("/"))
+					index = new File(f.getPath()+URI+"index.html");
+				else
+					try {
+						//is this a valid file request
+						if(isSubDirectory(f, new File(f.getPath()+URI)))
+							index = new File(URI);
+						else //invalid file request
+							statusLine += invalidFile();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				//error checking for index, does it exist? does it have read permission? Set index to null to indicate error occurred
+				if(index==null||!index.exists()|| !index.canRead()){
+					statusLine += indexError();
+					index = null;
+				}
+					
+			}else
+				//directory www does not exist return an error
+				statusLine += dirError();
+			//if index == null then an error has occurred
+			if(index != null)
 				try {
-					//is this a valid file request
-					if(isSubDirectory(f, new File(f.getPath()+URI)))
-						index = new File(URI);
-					else //invalid file request
-						statusLine += invalidFile();
+					//read the contents of the file in byte form
+					byte[] tmp = Files.readAllBytes(index.toPath());
+					//convert from bytes to string
+					for(int i = 0; i<tmp.length; i++)
+						if(tmp[i]!=0)
+							messageData+=(char)tmp[i];
+					//indicate successful file read
+					statusLine += OKHTTP();
+				
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-			//error checking for index, does it exist? does it have read permission? Set index to null to indicate error occurred
-			if(index==null||!index.exists()|| !index.canRead()){
-				statusLine += indexError();
-				index = null;
-			}
-				
-		}else
-			//directory www does not exist return an error
-			statusLine += dirError();
-		//if index == null then an error has occurred
-		if(index != null)
-			try {
-				//read the contents of the file in byte form
-				byte[] tmp = Files.readAllBytes(index.toPath());
-				//convert from bytes to string
-				for(int i = 0; i<tmp.length; i++)
-					if(tmp[i]!=0)
-						messageData+=(char)tmp[i];
-				//indicate successful file read
-				statusLine += OKHTTP();
 			
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		}
+		
+		
 		return statusLine+Server+CONTENT_LANGUAGE+date+"["+messageData+"]";
 		
 	}
@@ -201,7 +214,7 @@ public class ConnectionService implements Runnable {
 		return URI.replace("GET ", "").replace(" HTTP/1.1", "");
 	}
 
-	@Override
+	//@Override
 	/**
 	 * Run method called by Server, responds to the client
 	 */
