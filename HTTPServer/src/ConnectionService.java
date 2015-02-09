@@ -13,7 +13,7 @@ import java.util.TimeZone;
 public class ConnectionService implements Runnable {
 	
 	//Constants used in HTML Spec CRLF:Carriage Return Line Feed and SP: Space, ContentLanguage is just to simplify returns later
-	private final String CRLF = "\r\n", SP = " ", CONTENT_LANGUAGE = "Content-language: en"+CRLF;
+	private final String CRLF = "\r\n", SP = " ", CONTENT_LANGUAGE = "Content-language: en"+CRLF, CONTENT_TYPE = "Content-Type: text/html"+CRLF;
 	//The Start of the server ID, added onto by the constructor
 	private String Server = "Server: ";
 	//Number of connections, held static over all connectionservice objects, used by HTTP Server
@@ -90,13 +90,16 @@ public class ConnectionService implements Runnable {
 		//Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 		String statusLine = "HTTP/1.1"+SP;
 		//Set the date
-		String date = "Date: "+getServerTime()+CRLF;
+		String date = "Date: "+getServerTime()+CRLF+CRLF;
 		//The file to read and return
 		File index = null;
 		//the contents of the read file
-		String messageData = null;
+		String messageData = "";
 		//Remove the GET and HTTP from the URI
 		URI = trimURI(URI);
+		
+		System.out.println("The trimmed URI:");
+		System.out.println(URI);
 		
 		//reject request to get documents outside of www folder
 		if(URI.contains("..")){
@@ -105,12 +108,15 @@ public class ConnectionService implements Runnable {
 			
 		}
 		else{
-			
+			System.out.println("Before checking that f is a directory");
 			//ensure that the www directory exists
 			if(f.isDirectory()){
 				//return index.html
-				if(URI.equals("/"))
+				System.out.println("f is a directory");
+				if(URI.equals("/")){
+					System.out.println("Checked that the URI equals / ");
 					index = new File(f.getPath()+URI+"index.html");
+				}
 				else
 					try {
 						//is this a valid file request
@@ -134,6 +140,7 @@ public class ConnectionService implements Runnable {
 			if(index != null)
 				try {
 					//read the contents of the file in byte form
+					System.out.println("Reading the contents of the file in byte form");
 					byte[] tmp = Files.readAllBytes(index.toPath());
 					//convert from bytes to string
 					for(int i = 0; i<tmp.length; i++)
@@ -141,6 +148,7 @@ public class ConnectionService implements Runnable {
 							messageData+=(char)tmp[i];
 					//indicate successful file read
 					statusLine += OKHTTP();
+					System.out.println("Status should be successful");
 				
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -149,7 +157,7 @@ public class ConnectionService implements Runnable {
 		}
 		
 		
-		return statusLine+Server+CONTENT_LANGUAGE+date+"["+messageData+"]";
+		return statusLine+Server+CONTENT_TYPE+CONTENT_LANGUAGE+date+messageData;
 		
 	}
 
@@ -222,6 +230,9 @@ public class ConnectionService implements Runnable {
 		// Read the input until the connection closes or there is no more input
 		while(in.hasNext()){
 			String s = in.nextLine();
+			System.out.println();
+			System.out.println(s);
+			System.out.println();
 			if(s.startsWith("GET")){
 				//System.out.println(httpGET(s));
 				//return the GET response
